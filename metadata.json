@@ -1,0 +1,5 @@
+{
+  "name": "GCP Automation Hub",
+  "description": "A Single Page Application to automate the generation and audit of General Control Protocols for One Station Media.",
+  "requestFramePermissions": []
+}
