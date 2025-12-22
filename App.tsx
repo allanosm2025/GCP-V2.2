@@ -13,7 +13,7 @@ import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 const STORAGE_KEY_STATE = 'gcp_app_state_v2';
 const STORAGE_KEY_DATA = 'gcp_campaign_data_v2';
 
-const FunProcessingView = ({ status, onCancel }: { status: string, onCancel: () => void }) => {
+const FunProcessingView = ({ status }: { status: string }) => {
   const [messageIndex, setMessageIndex] = useState(0);
   const [progress, setProgress] = useState(0);
 
@@ -81,14 +81,6 @@ const FunProcessingView = ({ status, onCancel }: { status: string, onCancel: () 
             <div className="bg-gradient-to-r from-primary to-accent h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div>
           </div>
           <p className="text-xs text-slate-400 font-medium italic">Extraindo 100% das linhas dos planos de mídia.</p>
-          
-          <button 
-            onClick={onCancel}
-            className="mt-8 text-xs font-semibold text-slate-500 hover:text-red-500 transition-colors flex items-center gap-2 cursor-pointer border border-transparent hover:border-red-200 px-4 py-2 rounded-full"
-          >
-            <Trash2 className="w-3 h-3" />
-            Cancelar e Limpar Cache
-          </button>
         </div>
       </div>
       <style>{`
@@ -363,27 +355,17 @@ function App() {
               responseMimeType: "application/json",
               responseSchema,
               temperature: 0.1,
-              maxOutputTokens: 65000, // Aumentado para prevenir cortes em documentos grandes
+              maxOutputTokens: 15000,
+              thinkingConfig: { thinkingBudget: 0 }
             }
           });
           extractedText = response.text || "";
-          
-          // Validação preliminar básica
-          if (extractedText && (extractedText.trim().startsWith('{') || extractedText.trim().startsWith('```'))) {
-             break;
-          } else {
-             console.warn(`Resposta inválida do modelo ${modelName}:`, extractedText?.substring(0, 100));
-             extractedText = ""; // Descarta resposta inválida para forçar próxima tentativa
-             throw new Error("Resposta da IA não é um JSON válido");
-          }
-
+          if (extractedText) break;
         } catch (err: any) {
           lastError = err.message || JSON.stringify(err);
-          console.error(`Erro com modelo ${modelName}:`, lastError);
-          
           if (lastError.includes('429') || lastError.includes('503')) {
-            setProcessingStatus(`Limite de API (${modelName}). Trocando modelo em 10s...`);
-            await new Promise(r => setTimeout(r, 10000)); // Aumentado para 10s para garantir reset de quota
+            setProcessingStatus(`Reconectando...`);
+            await new Promise(r => setTimeout(r, 4000));
           }
         }
       }
@@ -423,7 +405,7 @@ function App() {
     }
   };
 
-  if (appState === 'processing') return <FunProcessingView status={processingStatus} onCancel={handleHardReset} />;
+  if (appState === 'processing') return <FunProcessingView status={processingStatus} />;
 
   return (
     <div className="min-h-screen font-sans text-slate-800">

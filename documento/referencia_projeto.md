@@ -6,7 +6,7 @@ Este sistema é uma **Single Page Application (SPA)** desenvolvida para automati
 ## 2. Tecnologias Utilizadas
 *   **Frontend**: React 18 (via Vite)
 *   **Linguagem**: TypeScript
-*   **Estilização**: Tailwind CSS
+*   **Estilização**: Tailwind CSS v4 (via plugin `@tailwindcss/vite` e variáveis CSS nativas)
 *   **IA Generativa**: Google Gemini (via SDK `@google/genai`)
 *   **Chat IA**: `react-markdown` para renderização rica de respostas
 *   **Ícones**: Lucide React
@@ -28,29 +28,31 @@ Este sistema é uma **Single Page Application (SPA)** desenvolvida para automati
     3.  **E-mail**: Thread de negociação/aprovação (HTML ou PDF).
     4.  **OPEC**: Plano técnico/tabela (Excel/PDF).
 *   Conversão automática de arquivos para Base64.
-*   Monitoramento de cota de uso da API do Gemini.
+*   **Interface de Processamento (`FunProcessingView`)**:
+    *   Feedback visual com animações e barra de progresso.
+    *   **Botão de Cancelamento**: Opção "Cancelar e Limpar Cache" para abortar operações travadas ou limpar estado inconsistente.
 
 ### 3.2 Inteligência Artificial (`App.tsx`)
-*   Uso da API do Google Gemini (`gemini-3-flash-preview` com fallback para `gemini-3-pro-preview`).
+*   **Modelos e Resiliência**:
+    *   Sistema de **Fallback Automático** que tenta múltiplos modelos em sequência para garantir disponibilidade:
+        1. `gemini-2.0-flash` (Prioridade: Velocidade/Custo)
+        2. `gemini-1.5-flash` (Estabilidade)
+        3. `gemini-1.5-pro` (Capacidade de Contexto)
+        4. `gemini-3-flash-preview` (Experimental/Novo)
+    *   **Backoff Exponencial**: Em caso de erro 429 (Resource Exhausted), o sistema aguarda 10 segundos antes de tentar o próximo modelo.
+    *   **Tokens Aumentados**: `maxOutputTokens` configurado para 65000 para suportar grandes volumes de dados extraídos.
+*   **Segurança de Dados**:
+    *   **Validação Pré-Parse**: O sistema verifica se a resposta da IA é um JSON válido antes de tentar processar, prevenindo falhas de execução (tela branca).
+    *   Limpeza automática de blocos de código markdown (```json ... ```) na resposta.
 *   **Prompt System**: Persona de "Auditor de Mídia Sênior" para extração rigorosa.
-*   **Schema**: Estrutura JSON rígida para garantir tipagem correta dos dados extraídos.
-*   **Capacidades**:
-    *   Extração linha a linha de estratégias de mídia.
-    *   Comparação cruzada (Auditoria) entre documentos.
-    *   Detecção de inconsistências (e.g., Valores divergentes entre PI e Proposta).
-    *   **Validações Obrigatórias de Auditoria** (configuradas no `systemInstruction`):
-        1. **Período de Veiculação**: Consistência de `startDate` e `endDate` entre PI, Proposta e OPEC.
-        2. **Budget Líquido**: Comparação do `netValue` em todos os documentos.
-        3. **Budget Bruto**: Comparação do `totalBudget` em todos os documentos.
-        4. **Meta de Impressões/Views/Cliques**: Verificação da consistência do `impressionGoal`.
-        5. **CPM de Venda Líquido**: CPM comercial da Proposta (não o CPM técnico do OPEC).
-        6. **Praças/Endereços**: Validação de `targeting.geo` para garantir completude e consistência.
-        7. **Meta de CTR ou VTR**: Verificação se a meta está especificada nos KPIs ou estratégias.
-        
-        > ⚠️ **Nota**: A IA é instruída a criar uma entrada no array `audit` para CADA um desses campos obrigatórios, comparando valores encontrados em PI, Proposta, E-mail e OPEC, marcando `isConsistent: true/false` e incluindo `notes` técnicas sobre divergências.
-        
-    *   **Tratamento de Dados Ausentes**: Campos não encontrados são marcados como "Não Encontrado" em vez de causar falhas.
-    *   **Detecção de Erro 429**: Sistema detecta limite de API e orienta o usuário a aguardar antes de tentar novamente.
+*   **Validações Obrigatórias de Auditoria**:
+    1. **Período de Veiculação**: Consistência de `startDate` e `endDate`.
+    2. **Budget Líquido**: Comparação do `netValue`.
+    3. **Budget Bruto**: Comparação do `totalBudget`.
+    4. **Meta de Impressões/Views/Cliques**: Verificação do `impressionGoal`.
+    5. **CPM de Venda Líquido**: Validação cruzada de custos.
+    6. **Praças/Endereços**: Validação geográfica (`targeting.geo`).
+    7. **Meta de CTR ou VTR**: Verificação de KPIs de qualidade.
 
 ### 3.3 Dashboard (`Dashboard.tsx`)
 Visualização dos dados processados em abas:
@@ -63,8 +65,6 @@ Visualização dos dados processados em abas:
     - **Limite**: 3 perguntas por projeto (para controle de custos de API)
     - **Persistência**: Histórico salvo no `localStorage` por campanha
     - **Formatação**: Renderização Markdown rica (tabelas, listas, negrito, emojis)
-    - **Contexto**: Acesso completo aos dados extraídos da campanha
-    - **Contadores**: Badge visual mostrando perguntas restantes
 
 ### 3.4 Relatórios (`ReportGenerator.tsx`)
 *   Geração de arquivo HTML standalone com o resumo da auditoria.
@@ -84,29 +84,27 @@ Visualização dos dados processados em abas:
     - `referencia_projeto.md`: Este arquivo
     - `instrucoes_desenvolvimento.md`: Diretrizes para desenvolvimento
     - `instrucoes_seguranca.md`: Diretrizes de segurança
-*   `App.tsx`: Controlador principal, contém a lógica de integração com a IA.
-*   `types.ts`: Definições de tipos TypeScript (Interfaces para CampaignData, StrategyItem, etc.).
-*   `constants.ts`: Valores iniciais e constantes do sistema.
+*   `src/index.css`: Estilos globais e configuração Tailwind v4 (@theme).
+*   `App.tsx`: Controlador principal, contém a lógica de integração com a IA e tratamento de erros.
+*   `types.ts`: Definições de tipos TypeScript.
+*   `vite.config.ts`: Configuração de build com plugin React e Tailwind.
 
 ## 5. Status Atual do Desenvolvimento
-*   ✅ **Frontend**: Estrutura completa e funcional.
-*   ✅ **Integração IA**: Implementada com tratamento robusto de erros e retentativas.
+*   ✅ **Frontend**: Estrutura completa, migrada para **Tailwind CSS v4**.
+*   ✅ **Integração IA**: Sistema robusto com **fallback de múltiplos modelos** e recuperação automática de erros.
 *   ✅ **Build**: Configuração do Vite validada e build de produção funcionando (`npm run build`).
-*   ✅ **Persistência**: Dados e histórico de chat salvos localmente (`localStorage`) para evitar perda.
-*   ✅ **Chat IA**: Sistema conversacional totalmente funcional com formatação profissional.
+*   ✅ **UX**: Animações restauradas e botão de escape para processos travados.
+*   ✅ **Persistência**: Dados e histórico de chat salvos localmente (`localStorage`).
+*   ✅ **Chat IA**: Sistema conversacional funcional com formatação profissional.
 *   ✅ **Auditoria Obrigatória**: 7 campos críticos sempre validados automaticamente.
-*   ✅ **Controle de Custos**: Limite de 3 perguntas por projeto no chat.
-*   ✅ **Tratamento de Erros**: Detecção de erro 429 (limite de API) com mensagens claras.
 
 ## 6. Próximos Passos Sugeridos
 *   Refinamento adicional das regras de validação da IA.
-*   Sistema de exportação de dados para integração com outras ferramentas.
+*   Sistema de exportação de dados para integração com outras ferramentas (CSV/JSON).
 *   Dashboard de métricas globais (múltiplas campanhas).
 *   Melhorias na UX de edição manual das tabelas extraídas.
 *   Sistema de notificações para alertas de auditoria críticos.
 
 ## 7. Notas Importantes
-*   **Limites de API**: O Google Gemini possui quotas por minuto. Se atingir o limite (erro 429), aguardar 2-3 minutos.
-*   **Persistência de Chat**: Cada campanha tem seu próprio histórico isolado no `localStorage`.
-*   **Contador de Perguntas**: Armazenado por nome da campanha, pode ser resetado limpando o `localStorage`.
-*   **Markdown no Chat**: Suporta tabelas, listas, negrito, itálico, código inline, títulos e emojis.
+*   **Limites de API**: O sistema gerencia automaticamente erros 429 trocando de modelo e aguardando (backoff), mas em casos extremos pode solicitar ao usuário que aguarde.
+*   **Tailwind v4**: Não utilize `tailwind.config.js`. Configurações de tema devem ser feitas via CSS variables no `src/index.css` dentro da diretiva `@theme`.
