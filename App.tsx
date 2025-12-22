@@ -13,7 +13,7 @@ import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 const STORAGE_KEY_STATE = 'gcp_app_state_v2';
 const STORAGE_KEY_DATA = 'gcp_campaign_data_v2';
 
-const FunProcessingView = ({ status }: { status: string }) => {
+const FunProcessingView = ({ status, onCancel }: { status: string, onCancel: () => void }) => {
   const [messageIndex, setMessageIndex] = useState(0);
   const [progress, setProgress] = useState(0);
 
@@ -382,8 +382,8 @@ function App() {
           console.error(`Erro com modelo ${modelName}:`, lastError);
           
           if (lastError.includes('429') || lastError.includes('503')) {
-            setProcessingStatus(`Limite de API (429). Aguardando...`);
-            await new Promise(r => setTimeout(r, 6000)); // Aumentado tempo de espera
+            setProcessingStatus(`Limite de API (${modelName}). Trocando modelo em 10s...`);
+            await new Promise(r => setTimeout(r, 10000)); // Aumentado para 10s para garantir reset de quota
           }
         }
       }
@@ -423,7 +423,7 @@ function App() {
     }
   };
 
-  if (appState === 'processing') return <FunProcessingView status={processingStatus} />;
+  if (appState === 'processing') return <FunProcessingView status={processingStatus} onCancel={handleHardReset} />;
 
   return (
     <div className="min-h-screen font-sans text-slate-800">
