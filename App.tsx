@@ -355,17 +355,27 @@ function App() {
               responseMimeType: "application/json",
               responseSchema,
               temperature: 0.1,
-              maxOutputTokens: 15000,
-              thinkingConfig: { thinkingBudget: 0 }
+              maxOutputTokens: 65000, // Aumentado para prevenir cortes em documentos grandes
             }
           });
           extractedText = response.text || "";
-          if (extractedText) break;
+          
+          // Validação preliminar básica
+          if (extractedText && (extractedText.trim().startsWith('{') || extractedText.trim().startsWith('```'))) {
+             break;
+          } else {
+             console.warn(`Resposta inválida do modelo ${modelName}:`, extractedText?.substring(0, 100));
+             extractedText = ""; // Descarta resposta inválida para forçar próxima tentativa
+             throw new Error("Resposta da IA não é um JSON válido");
+          }
+
         } catch (err: any) {
           lastError = err.message || JSON.stringify(err);
+          console.error(`Erro com modelo ${modelName}:`, lastError);
+          
           if (lastError.includes('429') || lastError.includes('503')) {
-            setProcessingStatus(`Reconectando...`);
-            await new Promise(r => setTimeout(r, 4000));
+            setProcessingStatus(`Limite de API (429). Aguardando...`);
+            await new Promise(r => setTimeout(r, 6000)); // Aumentado tempo de espera
           }
         }
       }

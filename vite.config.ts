@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig(({ mode }) => {
   // Carrega variáveis de ambiente baseadas no mode atual (development/production)
@@ -12,7 +13,10 @@ export default defineConfig(({ mode }) => {
   console.log("---------------------------");
 
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      tailwindcss()
+    ],
     define: {
       // SEGURANÇA: A chave agora é injetada via variável de ambiente,
       // não ficando mais exposta no código fonte do repositório.
