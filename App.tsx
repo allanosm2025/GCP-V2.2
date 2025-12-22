@@ -81,6 +81,14 @@ const FunProcessingView = ({ status }: { status: string }) => {
             <div className="bg-gradient-to-r from-primary to-accent h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div>
           </div>
           <p className="text-xs text-slate-400 font-medium italic">Extraindo 100% das linhas dos planos de mídia.</p>
+          
+          <button 
+            onClick={onCancel}
+            className="mt-8 text-xs font-semibold text-slate-500 hover:text-red-500 transition-colors flex items-center gap-2 cursor-pointer border border-transparent hover:border-red-200 px-4 py-2 rounded-full"
+          >
+            <Trash2 className="w-3 h-3" />
+            Cancelar e Limpar Cache
+          </button>
         </div>
       </div>
       <style>{`
