@@ -4,7 +4,7 @@
 Este sistema é uma **Single Page Application (SPA)** desenvolvida para automatizar a auditoria de campanhas de mídia da **One Station Media**. O objetivo principal é extrair, estruturar e auditar dados de múltiplos documentos (PDFs, E-mails, Excel) para garantir a consistência e conformidade dos planos de mídia.
 
 ## 2. Tecnologias Utilizadas
-*   **Frontend**: React 18 (via Vite)
+*   **Frontend**: React 19 (via Vite)
 *   **Linguagem**: TypeScript
 *   **Estilização**: Tailwind CSS v4 (via plugin `@tailwindcss/vite` e variáveis CSS nativas)
 *   **IA Generativa**: Google Gemini (via SDK `@google/genai`)
@@ -34,11 +34,9 @@ Este sistema é uma **Single Page Application (SPA)** desenvolvida para automati
 
 ### 3.2 Inteligência Artificial (`App.tsx`)
 *   **Modelos e Resiliência**:
-    *   Sistema de **Fallback Automático** que tenta múltiplos modelos em sequência para garantir disponibilidade:
-        1. `gemini-2.0-flash` (Prioridade: Velocidade/Custo)
-        2. `gemini-1.5-flash` (Estabilidade)
-        3. `gemini-1.5-pro` (Capacidade de Contexto)
-        4. `gemini-3-flash-preview` (Experimental/Novo)
+    *   Sistema de **Fallback Automático** focado na família **Gemini 3 Preview**:
+        1. `gemini-3-pro-preview` (Prioridade: Capacidade Cognitiva)
+        2. `gemini-3-flash-preview` (Velocidade)
     *   **Backoff Exponencial**: Em caso de erro 429 (Resource Exhausted), o sistema aguarda 10 segundos antes de tentar o próximo modelo.
     *   **Tokens Aumentados**: `maxOutputTokens` configurado para 65000 para suportar grandes volumes de dados extraídos.
 *   **Segurança de Dados**:
@@ -71,7 +69,30 @@ Visualização dos dados processados em abas:
 *   Estilização profissional para envio ao cliente/interno.
 *   Inclui todas as seções do dashboard (KPIs, targeting, auditoria, etc.)
 
-## 4. Estrutura de Pastas
+## 4. Fluxo de Funcionamento Detalhado
+O sistema opera em um pipeline linear com mecanismos de recuperação de falhas:
+
+1.  **Entrada de Dados (Upload)**:
+    *   O usuário fornece os arquivos PDF/Excel/Email.
+    *   O frontend converte esses arquivos para Base64 sem enviá-los a nenhum servidor intermediário (processamento local/browser -> API Google).
+
+2.  **Orquestração de IA (Extração)**:
+    *   Um prompt complexo ("System Instruction") é montado contendo as regras de auditoria e o conteúdo dos arquivos.
+    *   **Tentativa 1**: Chama o modelo `gemini-3-pro-preview` (melhor raciocínio).
+    *   **Fallback**: Se houver erro de API (429/503) ou resposta inválida, o sistema aguarda 10 segundos e tenta o `gemini-3-flash-preview` (mais rápido).
+    *   **Validação**: A resposta bruta é verificada. Se não for um JSON válido, é descartada e o fallback é acionado.
+
+3.  **Pós-Processamento**:
+    *   O JSON extraído é limpo (remoção de markdown ` ```json `).
+    *   Os dados são normalizados e mesclados com a estrutura de dados padrão da aplicação.
+    *   O estado é salvo no `localStorage` para persistência.
+
+4.  **Dashboard e Interação**:
+    *   O usuário visualiza os dados estruturados.
+    *   Pode editar manualmente qualquer campo (o estado é atualizado em tempo real).
+    *   Pode usar o "Deep Chat" para fazer perguntas específicas sobre os documentos (o chat tem seu próprio contexto de IA).
+
+## 5. Estrutura de Pastas
 *   `/components`: Componentes React modulares
     - `UploadZone.tsx`: Interface de upload
     - `AuditTable.tsx`: Tabela de auditoria
@@ -89,7 +110,7 @@ Visualização dos dados processados em abas:
 *   `types.ts`: Definições de tipos TypeScript.
 *   `vite.config.ts`: Configuração de build com plugin React e Tailwind.
 
-## 5. Status Atual do Desenvolvimento
+## 6. Status Atual do Desenvolvimento
 *   ✅ **Frontend**: Estrutura completa, migrada para **Tailwind CSS v4**.
 *   ✅ **Integração IA**: Sistema robusto com **fallback de múltiplos modelos** e recuperação automática de erros.
 *   ✅ **Build**: Configuração do Vite validada e build de produção funcionando (`npm run build`).
@@ -98,7 +119,7 @@ Visualização dos dados processados em abas:
 *   ✅ **Chat IA**: Sistema conversacional funcional com formatação profissional.
 *   ✅ **Auditoria Obrigatória**: 7 campos críticos sempre validados automaticamente.
 
-## 6. Próximos Passos Sugeridos
+## 7. Próximos Passos Sugeridos
 *   Refinamento adicional das regras de validação da IA.
 *   Sistema de exportação de dados para integração com outras ferramentas (CSV/JSON).
 *   Dashboard de métricas globais (múltiplas campanhas).

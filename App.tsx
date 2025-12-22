@@ -13,7 +13,7 @@ import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 const STORAGE_KEY_STATE = 'gcp_app_state_v2';
 const STORAGE_KEY_DATA = 'gcp_campaign_data_v2';
 
-const FunProcessingView = ({ status }: { status: string }) => {
+const FunProcessingView = ({ status, onCancel }: { status: string, onCancel?: () => void }) => {
   const [messageIndex, setMessageIndex] = useState(0);
   const [progress, setProgress] = useState(0);
 
@@ -81,6 +81,15 @@ const FunProcessingView = ({ status }: { status: string }) => {
             <div className="bg-gradient-to-r from-primary to-accent h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div>
           </div>
           <p className="text-xs text-slate-400 font-medium italic">Extraindo 100% das linhas dos planos de mídia.</p>
+          
+          {onCancel && (
+            <button 
+              onClick={onCancel}
+              className="mt-8 text-xs text-red-500 hover:text-red-700 underline opacity-60 hover:opacity-100 transition-opacity flex items-center justify-center mx-auto"
+            >
+              <LogOut className="w-3 h-3 mr-1" /> Cancelar e Limpar Cache
+            </button>
+          )}
         </div>
       </div>
       <style>{`
@@ -336,7 +345,7 @@ function App() {
       parts.push({ inlineData: { mimeType, data: f.base64 } });
     });
 
-    // Updated model selection to align with task complexity
+    // Updated model selection: Priority to Gemini 3 Preview models as requested
     const tryModels = ['gemini-3-pro-preview', 'gemini-3-flash-preview'];
     let extractedText = "";
     let lastError = "";
@@ -345,7 +354,7 @@ function App() {
       const ai = new GoogleGenAI({ apiKey: key });
 
       for (const modelName of tryModels) {
-        setProcessingStatus(`Extraindo linhas via ${modelName}...`);
+        setProcessingStatus(`Analisando via ${modelName}...`);
         try {
           const response: GenerateContentResponse = await ai.models.generateContent({
             model: modelName,
@@ -355,17 +364,26 @@ function App() {
               responseMimeType: "application/json",
               responseSchema,
               temperature: 0.1,
-              maxOutputTokens: 15000,
-              thinkingConfig: { thinkingBudget: 0 }
+              maxOutputTokens: 65000,
             }
           });
           extractedText = response.text || "";
-          if (extractedText) break;
+          
+          // Pre-validation to ensure JSON integrity
+          if (extractedText && (extractedText.trim().startsWith('{') || extractedText.trim().startsWith('```'))) {
+             break;
+          } else {
+             console.warn(`Resposta inválida do modelo ${modelName}:`, extractedText?.substring(0, 100));
+             extractedText = ""; // Discard invalid response
+             throw new Error("Resposta da IA não é um JSON válido");
+          }
         } catch (err: any) {
           lastError = err.message || JSON.stringify(err);
+          console.error(`Erro no modelo ${modelName}:`, lastError);
+          
           if (lastError.includes('429') || lastError.includes('503')) {
-            setProcessingStatus(`Reconectando...`);
-            await new Promise(r => setTimeout(r, 4000));
+            setProcessingStatus(`Limite de API (${modelName}). Trocando modelo em 10s...`);
+            await new Promise(r => setTimeout(r, 10000)); // 10s backoff
           }
         }
       }
@@ -405,7 +423,7 @@ function App() {
     }
   };
 
-  if (appState === 'processing') return <FunProcessingView status={processingStatus} />;
+  if (appState === 'processing') return <FunProcessingView status={processingStatus} onCancel={handleHardReset} />;
 
   return (
     <div className="min-h-screen font-sans text-slate-800">
