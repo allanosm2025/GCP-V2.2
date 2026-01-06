@@ -12,6 +12,7 @@ export const INITIAL_CAMPAIGN_STATE: CampaignData = {
   objective: "-",
   marketingTactic: "-",
   emails: [],
+  emailBatches: [],
   pmProposalStrategies: [],
   pmOpecStrategies: [],
   audit: [],

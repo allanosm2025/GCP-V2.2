@@ -14,6 +14,13 @@ export interface EmailInteraction {
   type: 'initial' | 'negotiation' | 'approval';
 }
 
+export interface EmailBatch {
+  id: string;
+  fileName: string;
+  uploadedAt: string;
+  emails: EmailInteraction[];
+}
+
 export interface TechFeatures {
   hasFirstParty: boolean;
   hasFootfall: boolean;
@@ -33,9 +40,35 @@ export interface StrategyItem {
   techFeatures: TechFeatures;
 }
 
+export const AUDIT_FIELD_KEYS = [
+  'startDate',
+  'endDate',
+  'grossBudget',
+  'netBudget',
+  'totalImpressions',
+  'soldCPM',
+  'campaignObjective',
+  'ctrCheck',
+  'targetLocations',
+] as const;
+
+export type AuditFieldKey = (typeof AUDIT_FIELD_KEYS)[number];
+
+export const AUDIT_FIELD_LABELS: Record<AuditFieldKey, string> = {
+  startDate: '1. Data de Início',
+  endDate: '2. Data de Término',
+  grossBudget: '3. Investimento Bruto (Total)',
+  netBudget: '4. Investimento Líquido',
+  totalImpressions: '5. Total de Impressões',
+  soldCPM: '6. CPM Vendido (Média)',
+  campaignObjective: '7. Objetivo da Campanha',
+  ctrCheck: '8. Meta de CTR (> 1%)',
+  targetLocations: '9. Praças / Endereços',
+};
+
 export interface AuditItem {
   id: number;
-  field: string;
+  field: AuditFieldKey;
   piValue: string;
   proposalValue: string; // New field for Proposal Commercial PDF
   emailValue: string;    // Dedicated field for Email Thread
@@ -84,6 +117,47 @@ export interface AssetLinks {
   destinationUrls: string[];
 }
 
+export interface AiReportPublisherMetric {
+  name: string;
+  impressions?: number;
+  clicks?: number;
+  ctr?: number;
+}
+
+export interface AiReportBreakdownItem {
+  label: string;
+  share?: number;
+}
+
+export interface AiReportGoalCheckItem {
+  goal: string;
+  target?: string;
+  actual?: string;
+  status: 'hit' | 'partial' | 'miss' | 'unknown';
+  notes?: string;
+}
+
+export interface AiReport {
+  generatedAt: string;
+  sourceFileName: string;
+  sourceFileType: string;
+  summary: {
+    impressions?: number;
+    clicks?: number;
+    ctr?: number;
+  };
+  publishers?: AiReportPublisherMetric[];
+  demographics?: {
+    gender?: AiReportBreakdownItem[];
+    age?: AiReportBreakdownItem[];
+  };
+  considerations?: string[];
+  goalsCheck?: {
+    overallStatus: 'hit' | 'partial' | 'miss' | 'unknown';
+    items: AiReportGoalCheckItem[];
+  };
+}
+
 export interface CampaignData {
   clientName: string;
   campaignName: string;
@@ -99,6 +173,8 @@ export interface CampaignData {
   marketingTactic: string;
 
   emails: EmailInteraction[];
+
+  emailBatches?: EmailBatch[];
 
   // Manual Observations with AI
   overviewObservations?: string;
@@ -121,7 +197,9 @@ export interface CampaignData {
 
   // Asset Links
   links: AssetLinks;
+
+  aiReport?: AiReport;
 }
 
 export type AppState = 'upload' | 'processing' | 'dashboard';
-export type DashboardTab = 'overview' | 'profile' | 'email' | 'pi' | 'pm_proposal' | 'pm_opec' | 'audit' | 'chat';
+export type DashboardTab = 'overview' | 'profile' | 'email' | 'pi' | 'pm_proposal' | 'pm_opec' | 'audit' | 'chat' | 'report';

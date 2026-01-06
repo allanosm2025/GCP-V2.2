@@ -4,6 +4,7 @@ import { CampaignData } from '../types';
 import { OverviewTab } from './dashboard/OverviewTab';
 import { ProfileTab } from './dashboard/ProfileTab';
 import { PITab } from './dashboard/PITab';
+import ReportTab from './dashboard/ReportTab';
 import AuditTable from './AuditTable';
 import EmailTimeline from './EmailTimeline';
 import InternalPM from './InternalPM';
@@ -14,6 +15,7 @@ import {
     ShieldCheck,
     Briefcase,
     Presentation,
+    BarChart3,
     Cpu,
     Shield,
     Building2
@@ -27,6 +29,7 @@ const TABS = [
     { id: 'pi', label: 'Pedido de Inserção', icon: FileText },
     { id: 'pm_proposal', label: 'Plano Proposta', icon: Presentation },
     { id: 'audit', label: 'Auditoria GCP', icon: ShieldCheck },
+    { id: 'report', label: 'Relatório', icon: BarChart3 },
 ];
 
 const CommercialReportLayout: React.FC<{ data: CampaignData }> = ({ data }) => {
@@ -97,28 +100,32 @@ const CommercialReportLayout: React.FC<{ data: CampaignData }> = ({ data }) => {
                         </div>
                     </div>
 
-                    <div id="content-overview" className="tab-content block">
+                    <div id="content-overview" className="tab-content tab-block">
                         <OverviewTab data={data} isEditing={false} onUpdate={() => { }} onNestedUpdate={() => { }} />
                     </div>
 
-                    <div id="content-profile" className="tab-content hidden">
+                    <div id="content-profile" className="tab-content tab-hidden">
                         <ProfileTab data={data} isEditing={false} onUpdate={() => { }} onNestedUpdate={() => { }} />
                     </div>
 
-                    <div id="content-email" className="tab-content hidden">
-                        <EmailTimeline emails={data.emails} />
+                    <div id="content-email" className="tab-content tab-hidden">
+                        <EmailTimeline emails={data.emails} batches={data.emailBatches} />
                     </div>
 
-                    <div id="content-pi" className="tab-content hidden">
+                    <div id="content-pi" className="tab-content tab-hidden">
                         <PITab data={data} isEditing={false} onUpdate={() => { }} onNestedUpdate={() => { }} />
                     </div>
 
-                    <div id="content-pm_proposal" className="tab-content hidden">
+                    <div id="content-pm_proposal" className="tab-content tab-hidden">
                         <InternalPM strategies={data.pmProposalStrategies} totalBudget={data.totalBudget} title="Plano Comercial" badgeType="PROPOSAL" isEditing={false} />
                     </div>
 
-                    <div id="content-audit" className="tab-content hidden">
+                    <div id="content-audit" className="tab-content tab-hidden">
                         <AuditTable items={data.audit} onUpdate={() => { }} />
+                    </div>
+
+                    <div id="content-report" className="tab-content tab-hidden">
+                        <ReportTab data={data} />
                     </div>
                 </main>
             </div>
@@ -176,8 +183,8 @@ export const generateCommercialHtmlString = (data: CampaignData): string => {
         radial-gradient(at 100% 100%, rgba(79, 70, 229, 0.1) 0px, transparent 50%);
       background-attachment: fixed;
     }
-    .hidden { display: none !important; }
-    .block { display: block !important; }
+    .tab-hidden { display: none !important; }
+    .tab-block { display: block !important; }
     .glass-panel {
       background: rgba(255, 255, 255, 0.7);
       backdrop-filter: blur(12px);
@@ -207,13 +214,13 @@ export const generateCommercialHtmlString = (data: CampaignData): string => {
       const contents = document.querySelectorAll('.tab-content');
       function switchTab(tabId) {
         contents.forEach(content => {
-          content.classList.add('hidden');
-          content.classList.remove('block');
+          content.classList.add('tab-hidden');
+          content.classList.remove('tab-block');
         });
         const target = document.getElementById('content-' + tabId);
         if (target) {
-          target.classList.remove('hidden');
-          target.classList.add('block');
+          target.classList.remove('tab-hidden');
+          target.classList.add('tab-block');
         }
         triggers.forEach(t => {
           const tTab = t.getAttribute('data-tab');

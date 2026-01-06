@@ -7,11 +7,6 @@ export default defineConfig(({ mode }) => {
   // O terceiro parâmetro '' permite carregar variáveis do sistema que não começam com VITE_
   const env = loadEnv(mode, process.cwd(), '');
 
-  console.log("--- DEBUG VITE ENV DUMP ---");
-  console.log("Keys loaded:", Object.keys(env).filter(k => k.includes('API')));
-  console.log("GEMINI_API_KEY Raw:", env.GEMINI_API_KEY);
-  console.log("---------------------------");
-
   return {
     plugins: [
       react(),

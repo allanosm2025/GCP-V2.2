@@ -36,12 +36,13 @@ interface EditableLongTextFieldProps {
   field: keyof CampaignData;
   className?: string;
   rows?: number;
+  placeholder?: string;
   isEditing: boolean;
   onUpdate: (field: keyof CampaignData, value: any) => void;
 }
 
 export const EditableLongTextField: React.FC<EditableLongTextFieldProps> = ({ 
-  value, field, className = "", rows = 4, isEditing, onUpdate 
+  value, field, className = "", rows = 4, placeholder, isEditing, onUpdate 
 }) => {
   if (!isEditing) return <span className={`${className} block whitespace-pre-wrap leading-relaxed`}>{value}</span>;
   return (
@@ -49,6 +50,7 @@ export const EditableLongTextField: React.FC<EditableLongTextFieldProps> = ({
       rows={rows}
       value={value} 
       onChange={(e) => onUpdate(field, e.target.value)}
+      placeholder={placeholder}
       className={`border border-primary/30 bg-white/50 px-3 py-2 focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 w-full rounded-lg text-sm transition-all resize-y ${className}`}
     />
   );
