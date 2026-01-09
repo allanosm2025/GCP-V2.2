@@ -11,7 +11,7 @@ export const refineTextWithAi = async (text: string): Promise<string> => {
 
   try {
     const response = await (genAI as any).models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           {

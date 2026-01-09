@@ -1,5 +1,6 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import ReactMarkdown from 'react-markdown';
 import { CampaignData } from '../types';
 import { OverviewTab } from './dashboard/OverviewTab';
 import { ProfileTab } from './dashboard/ProfileTab';
@@ -19,8 +20,16 @@ import {
   BarChart3,
   Cpu,
   Shield,
-  Building2
+  Building2,
+  MessageSquare
 } from 'lucide-react';
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: string | Date;
+}
 
 const TABS = [
   { id: 'overview', label: 'Visão Geral', icon: LayoutDashboard },
@@ -30,10 +39,11 @@ const TABS = [
   { id: 'pm_proposal', label: 'Plano Proposta', icon: Presentation },
   { id: 'pm_opec', label: 'Plano OPEC', icon: Table2 },
   { id: 'audit', label: 'Auditoria GCP', icon: ShieldCheck },
+  { id: 'chat', label: 'Histórico Chat IA', icon: MessageSquare },
   { id: 'report', label: 'Relatório', icon: BarChart3 },
 ];
 
-const ReportLayout: React.FC<{ data: CampaignData }> = ({ data }) => {
+const ReportLayout: React.FC<{ data: CampaignData; chatHistory?: Message[] }> = ({ data, chatHistory = [] }) => {
   return (
     <div className="min-h-screen bg-[#f8fafc] font-sans antialiased text-slate-800 overflow-x-hidden">
       {/* Header Fixo */}
@@ -127,6 +137,48 @@ const ReportLayout: React.FC<{ data: CampaignData }> = ({ data }) => {
              <AuditTable items={data.audit} onUpdate={() => {}} />
           </div>
 
+          <div id="content-chat" className="tab-content tab-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 min-h-[500px]">
+              <div className="flex items-center mb-6">
+                <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 mr-4">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Histórico de Conversa (IA)</h3>
+                  <p className="text-xs text-slate-500">Registro estático das perguntas e respostas realizadas durante a auditoria.</p>
+                </div>
+              </div>
+
+              {chatHistory.length === 0 ? (
+                <div className="text-center py-20 text-slate-400">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                  <p>Nenhuma conversa registrada para esta campanha.</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {chatHistory.filter(m => m.role !== 'system').map((msg) => (
+                    <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[85%] rounded-2xl p-4 shadow-sm ${
+                        msg.role === 'user' 
+                          ? 'bg-indigo-600 text-white rounded-tr-none' 
+                          : 'bg-slate-100 text-slate-800 rounded-tl-none border border-slate-200'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-2 opacity-70 text-[10px] uppercase tracking-wider font-bold">
+                          <span>{msg.role === 'user' ? 'Você' : 'Auditor IA'}</span>
+                          <span>•</span>
+                          <span>{new Date(msg.timestamp).toLocaleString('pt-BR')}</span>
+                        </div>
+                        <div className={`prose prose-sm max-w-none ${msg.role === 'user' ? 'prose-invert' : ''}`}>
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           <div id="content-report" className="tab-content tab-hidden">
             <ReportTab data={data} />
           </div>
@@ -149,8 +201,8 @@ const ReportLayout: React.FC<{ data: CampaignData }> = ({ data }) => {
   );
 };
 
-export const generateHtmlString = (data: CampaignData): string => {
-  const reportMarkup = renderToStaticMarkup(<ReportLayout data={data} />);
+export const generateHtmlString = (data: CampaignData, chatHistory: Message[] = []): string => {
+  const reportMarkup = renderToStaticMarkup(<ReportLayout data={data} chatHistory={chatHistory} />);
   const serializedData = JSON.stringify(data).replace(/</g, '\\u003c');
 
   return `
@@ -161,6 +213,7 @@ export const generateHtmlString = (data: CampaignData): string => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
   <title>GCP Report - ${data.campaignName}</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -259,7 +312,19 @@ export const generateHtmlString = (data: CampaignData): string => {
 };
 
 export const downloadCampaignReport = (data: CampaignData) => {
-  const fullHtml = generateHtmlString(data);
+  // Recuperar histórico do chat
+  const messagesStorageKey = `chat_messages_${data.campaignName.replace(/\s+/g, '_')}`;
+  let chatHistory: Message[] = [];
+  try {
+      const savedMessages = localStorage.getItem(messagesStorageKey);
+      if (savedMessages) {
+          chatHistory = JSON.parse(savedMessages);
+      }
+  } catch (e) {
+      console.error("Erro ao recuperar histórico do chat para relatório", e);
+  }
+
+  const fullHtml = generateHtmlString(data, chatHistory);
   const blob = new Blob([fullHtml], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

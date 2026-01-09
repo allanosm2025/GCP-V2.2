@@ -172,7 +172,7 @@ function App() {
     <div className="min-h-screen font-sans text-slate-800">
       <header className="h-20 glass-header fixed top-0 w-full z-40 flex items-center px-4 sm:px-6 lg:px-8 justify-between shadow-sm gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <img src="https://onestationmedia.com/wp-content/uploads/2021/02/logo-sem-fundo@300x-768x543.png" alt="Logo" className="h-9 sm:h-10 bg-white rounded-md px-2 py-1 flex-shrink-0" />
+          <img src="/image/osm_logo_3.svg" alt="Logo" className="h-9 sm:h-10 bg-primary rounded-md px-2 py-1 flex-shrink-0" />
           <div className="hidden sm:flex flex-col min-w-0">
             <span className="text-sm font-bold text-slate-800 tracking-tight leading-none uppercase">Auditoria GCP Hub</span>
             <span className="text-[10px] text-slate-500 font-medium tracking-widest uppercase">One Station Media</span>
