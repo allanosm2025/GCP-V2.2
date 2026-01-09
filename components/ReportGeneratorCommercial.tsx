@@ -148,7 +148,7 @@ const CommercialReportLayout: React.FC<{ data: CampaignData }> = ({ data }) => {
                     </div>
 
                     <div id="content-report" className="tab-content tab-hidden">
-                        <ReportTab data={data} />
+                        <ReportTab data={data} isStatic={true} />
                     </div>
                 </main>
             </div>

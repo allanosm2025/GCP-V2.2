@@ -6,6 +6,7 @@ import { CampaignData, AiReport } from '../../types';
 interface ReportTabProps {
   data: CampaignData;
   isEditing?: boolean;
+  isStatic?: boolean;
   onImportReportFile?: (file: File) => Promise<void>;
   onUpdate?: (updatedReport: AiReport) => void;
 }
@@ -69,7 +70,64 @@ const ProgressBar = ({ value, max, color = 'bg-indigo-500' }: { value: number; m
   );
 };
 
-export const ReportTab: React.FC<ReportTabProps> = ({ data, isEditing = false, onImportReportFile, onUpdate }) => {
+const COLORS = ['#ec4899', '#3b82f6', '#8b5cf6', '#14b8a6'];
+
+const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
+  const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+  return {
+    x: centerX + (radius * Math.cos(angleInRadians)),
+    y: centerY + (radius * Math.sin(angleInRadians))
+  };
+}
+
+const describeArc = (x: number, y: number, innerRadius: number, outerRadius: number, startAngle: number, endAngle: number) => {
+    const start = polarToCartesian(x, y, outerRadius, endAngle);
+    const end = polarToCartesian(x, y, outerRadius, startAngle);
+    const start2 = polarToCartesian(x, y, innerRadius, endAngle);
+    const end2 = polarToCartesian(x, y, innerRadius, startAngle);
+
+    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+
+    const d = [
+        "M", end.x, end.y,
+        "A", outerRadius, outerRadius, 0, largeArcFlag, 1, start.x, start.y,
+        "L", start2.x, start2.y,
+        "A", innerRadius, innerRadius, 0, largeArcFlag, 0, end2.x, end2.y,
+        "Z"
+    ].join(" ");
+
+    return d;       
+}
+
+const StaticDonutChart = ({ data }: { data: any[] }) => {
+  let currentAngle = 0;
+  return (
+    <div className="flex flex-col items-center">
+      <svg width="200" height="200" viewBox="0 0 200 200">
+        <g>
+          {data.map((entry, index) => {
+            const share = parseFloat(entry.share);
+            const angle = (share / 100) * 360;
+            const endAngle = currentAngle + angle;
+            const path = describeArc(100, 100, 40, 70, currentAngle, endAngle);
+            currentAngle = endAngle;
+            return <path key={index} d={path} fill={COLORS[index % COLORS.length]} />;
+          })}
+        </g>
+      </svg>
+      <div className="flex flex-wrap justify-center gap-4 mt-2">
+         {data.map((entry, index) => (
+            <div key={index} className="flex items-center gap-1">
+               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+               <span className="text-[10px] text-slate-500 font-medium">{entry.label} ({Math.round(parseFloat(entry.share))}%)</span>
+            </div>
+         ))}
+      </div>
+    </div>
+  );
+};
+
+export const ReportTab: React.FC<ReportTabProps> = ({ data, isEditing = false, isStatic = false, onImportReportFile, onUpdate }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   
@@ -442,31 +500,35 @@ export const ReportTab: React.FC<ReportTabProps> = ({ data, isEditing = false, o
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Gênero</h4>
                     {(report.demographics?.gender || []).length ? (
                       <div className="flex flex-col items-center">
-                         <div className="h-48 w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <PieChart>
-                                <Pie
-                                  data={report.demographics?.gender}
-                                  cx="50%"
-                                  cy="50%"
-                                  innerRadius={40}
-                                  outerRadius={70}
-                                  paddingAngle={5}
-                                  dataKey="share"
-                                  nameKey="label"
-                                >
-                                  {report.demographics?.gender?.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={['#ec4899', '#3b82f6', '#8b5cf6', '#14b8a6'][index % 4]} />
-                                  ))}
-                                </Pie>
-                                <Tooltip 
-                                  formatter={(value: number) => `${value.toFixed(0)}%`}
-                                  contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                />
-                                <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                              </PieChart>
-                            </ResponsiveContainer>
-                         </div>
+                         {isStatic ? (
+                           <StaticDonutChart data={report.demographics?.gender || []} />
+                         ) : (
+                           <div className="h-48 w-full">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                  <Pie
+                                    data={report.demographics?.gender}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={40}
+                                    outerRadius={70}
+                                    paddingAngle={5}
+                                    dataKey="share"
+                                    nameKey="label"
+                                  >
+                                    {report.demographics?.gender?.map((entry, index) => (
+                                      <Cell key={`cell-${index}`} fill={['#ec4899', '#3b82f6', '#8b5cf6', '#14b8a6'][index % 4]} />
+                                    ))}
+                                  </Pie>
+                                  <Tooltip 
+                                    formatter={(value: number) => `${value.toFixed(0)}%`}
+                                    contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                  />
+                                  <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                </PieChart>
+                              </ResponsiveContainer>
+                           </div>
+                         )}
                          
                          {isEditing && (
                            <div className="w-full space-y-2 mt-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
