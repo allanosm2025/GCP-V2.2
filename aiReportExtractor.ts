@@ -161,7 +161,8 @@ export const extractAiReportFromFile = async (
   const promptText = `
     A partir do arquivo de relatório, extraia:
     - summary: impressions, clicks, ctr
-    - publishers: lista ordenada por impressões (quando possível)
+    - publishers: lista ordenada por impressões
+    - creatives: extraia a tabela de criativos/formatos (nome, impressões, cliques, ctr)
     - demographics: gender e age (quando existir)
     - considerations: considerações acionáveis e profissionais
     - goalsCheck: cruze com o contexto do briefing e aponte se metas foram batidas
@@ -180,67 +181,76 @@ export const extractAiReportFromFile = async (
 
   const apiKey = pickApiKey(availableKeys as string[], 'report');
   const ai = new GoogleGenAI({ apiKey });
+  
+  // IMPORTANTE: NÃO ALTERAR O MODELO ABAIXO SEM CONSULTA PRÉVIA AO USUÁRIO
   const modelName = 'gemini-3-flash-preview';
 
-  let extractedText = '';
-  try {
-    onStatus?.(`Analisando via ${modelName}...`);
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: modelName,
-      contents: { parts },
-      config: {
-        systemInstruction,
-        responseMimeType: 'application/json',
-        responseSchema: reportSchema,
-        temperature: 0.1,
-        maxOutputTokens: 12000,
-      },
-    });
+  let lastError: Error | null = null;
+  const MAX_RETRIES = 2;
 
-    extractedText = getGenerateResponseText(response);
-    if (!extractedText?.trim()) {
-      throw new Error('Resposta da IA vazia.');
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const isRetry = attempt > 1;
+      onStatus?.(isRetry ? `Tentativa ${attempt}/${MAX_RETRIES}: Reanalisando via ${modelName}...` : `Analisando via ${modelName}...`);
+      
+      const response: GenerateContentResponse = await ai.models.generateContent({
+        model: modelName,
+        contents: { parts },
+        config: {
+          systemInstruction: isRetry ? systemInstruction + '\nATENÇÃO: A tentativa anterior falhou. CERTIFIQUE-SE DE RETORNAR APENAS JSON VÁLIDO.' : systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: reportSchema,
+          temperature: isRetry ? 0.2 : 0.1, // Aumenta levemente a temperatura no retry para tentar caminho diferente
+          maxOutputTokens: 12000,
+        },
+      });
+
+      const extractedText = getGenerateResponseText(response);
+      if (!extractedText?.trim()) {
+        throw new Error('Resposta da IA vazia.');
+      }
+
+      onStatus?.('Validando JSON do relatório...');
+      console.log(`Raw AI Response (Attempt ${attempt}):`, extractedText.slice(0, 200) + '...');
+      
+      const parsed = parseAiJsonObject(extractedText);
+      const parsedObj = coerceReportParsed(parsed) || {};
+      
+      return {
+        generatedAt: new Date().toISOString(),
+        sourceFileName: file.name,
+        sourceFileType: file.type || 'application/octet-stream',
+        summary: {
+          impressions: typeof (parsedObj as any)?.summary?.impressions === 'number' ? (parsedObj as any).summary.impressions : undefined,
+          clicks: typeof (parsedObj as any)?.summary?.clicks === 'number' ? (parsedObj as any).summary.clicks : undefined,
+          ctr: typeof (parsedObj as any)?.summary?.ctr === 'number' ? (parsedObj as any).summary.ctr : undefined,
+        },
+        publishers: Array.isArray((parsedObj as any)?.publishers) ? (parsedObj as any).publishers : undefined,
+        creatives: Array.isArray((parsedObj as any)?.creatives) ? (parsedObj as any).creatives : undefined,
+        demographics: (parsedObj as any)?.demographics && typeof (parsedObj as any).demographics === 'object' ? (parsedObj as any).demographics : undefined,
+        considerations: Array.isArray((parsedObj as any)?.considerations) ? (parsedObj as any).considerations : undefined,
+        goalsCheck: (parsedObj as any)?.goalsCheck && typeof (parsedObj as any).goalsCheck === 'object' ? (parsedObj as any).goalsCheck : undefined,
+      };
+
+    } catch (err: any) {
+      console.warn(`Attempt ${attempt} failed:`, err);
+      lastError = err;
+      
+      // Se for erro de rate limit, não adianta tentar imediatamente sem esperar, mas aqui vamos deixar falhar e o user tenta de novo se for o caso, 
+      // ou poderíamos adicionar um delay. Como é "preview", rate limits são comuns.
+      const msg = String(err?.message || err || 'Erro desconhecido');
+      if (isRateLimitError(msg) || msg.includes('503')) {
+        throw new Error('Limite de requisições (429/503) atingido. Aguarde alguns segundos e tente novamente.');
+      }
+      
+      if (attempt === MAX_RETRIES) {
+         // Na última tentativa, lança o erro formatado
+         const snippet = (lastError as any)?.message || 'Erro desconhecido';
+         throw new Error(`Falha após ${MAX_RETRIES} tentativas. Último erro: ${snippet}`);
+      }
+      // Se não for a última, loop continua
     }
-  } catch (err: any) {
-    const msg = String(err?.message || err || 'Erro desconhecido');
-    if (isRateLimitError(msg) || msg.includes('503')) {
-      throw new Error('Limite de requisições (429/503) atingido. Aguarde 30s e tente novamente.');
-    }
-    throw new Error(msg || 'Falha ao extrair relatório.');
   }
 
-  let parsed: any;
-  try {
-    onStatus?.('Validando JSON do relatório...');
-    parsed = parseAiJsonObject(extractedText);
-  } catch (parseErr: any) {
-    const msg = String(parseErr?.message || parseErr || 'Resposta da IA não contém JSON parseável.');
-    throw new Error(msg);
-  }
-
-  const parsedObj = coerceReportParsed(parsed) || {};
-  return {
-    generatedAt: new Date().toISOString(),
-    sourceFileName: file.name,
-    sourceFileType: file.type || 'application/octet-stream',
-    summary: {
-      impressions:
-        typeof (parsedObj as any)?.summary?.impressions === 'number'
-          ? (parsedObj as any).summary.impressions
-          : undefined,
-      clicks:
-        typeof (parsedObj as any)?.summary?.clicks === 'number' ? (parsedObj as any).summary.clicks : undefined,
-      ctr: typeof (parsedObj as any)?.summary?.ctr === 'number' ? (parsedObj as any).summary.ctr : undefined,
-    },
-    publishers: Array.isArray((parsedObj as any)?.publishers) ? (parsedObj as any).publishers : undefined,
-    demographics:
-      (parsedObj as any)?.demographics && typeof (parsedObj as any).demographics === 'object'
-        ? (parsedObj as any).demographics
-        : undefined,
-    considerations: Array.isArray((parsedObj as any)?.considerations) ? (parsedObj as any).considerations : undefined,
-    goalsCheck:
-      (parsedObj as any)?.goalsCheck && typeof (parsedObj as any).goalsCheck === 'object'
-        ? (parsedObj as any).goalsCheck
-        : undefined,
-  };
+  throw lastError || new Error('Falha inesperada na extração do relatório.');
 };

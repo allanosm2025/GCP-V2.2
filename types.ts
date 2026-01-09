@@ -151,6 +151,12 @@ export interface AiReport {
     gender?: AiReportBreakdownItem[];
     age?: AiReportBreakdownItem[];
   };
+  creatives?: {
+    name: string;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+  }[];
   considerations?: string[];
   goalsCheck?: {
     overallStatus: 'hit' | 'partial' | 'miss' | 'unknown';

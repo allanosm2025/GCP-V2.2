@@ -124,7 +124,7 @@ const Dashboard: React.FC<DashboardProps> = ({ activeTab, data, onUpdate, onHard
         return <ChatTab data={data} />;
 
       case 'report':
-        return <ReportTab data={data} onImportReportFile={onImportReportFile} />;
+        return <ReportTab data={data} isEditing={isEditing} onImportReportFile={onImportReportFile} onUpdate={(report) => onUpdate({ aiReport: report })} />;
 
       default:
         return <div className="p-10 text-center text-slate-400">Em desenvolvimento.</div>;

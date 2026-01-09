@@ -1,9 +1,27 @@
 export const cleanGeminiJsonText = (raw: string): string => {
   let cleanJson = (raw || '').trim();
+  
+  // Tenta encontrar padrão markdown de bloco de código json em qualquer lugar
+  const match = cleanJson.match(/```json\s*([\s\S]*?)\s*```/i);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  
+  // Tenta encontrar bloco genérico se não achou json explícito
+  const matchGeneric = cleanJson.match(/```\s*([\s\S]*?)\s*```/i);
+  if (matchGeneric && matchGeneric[1]) {
+    // Verifica se parece JSON (começa com { ou [)
+    const content = matchGeneric[1].trim();
+    if (content.startsWith('{') || content.startsWith('[')) {
+        return content;
+    }
+  }
+
   if (cleanJson.startsWith('```')) {
     cleanJson = cleanJson.replace(/^```json\s*/i, '').replace(/\s*```$/, '');
   }
-  return cleanJson.replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
+  // Remove apenas caracteres de controle não-imprimíveis, mantendo tabs e newlines
+  return cleanJson.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '');
 };
 
 export const getGenerateResponseText = (response: any): string => {
