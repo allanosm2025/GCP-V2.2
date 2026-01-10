@@ -126,6 +126,19 @@ O sistema opera em um pipeline linear com mecanismos de recuperação de falhas:
 *   Melhorias na UX de edição manual das tabelas extraídas.
 *   Sistema de notificações para alertas de auditoria críticos.
 
-## 7. Notas Importantes
+## 8. Notas Importantes
 *   **Limites de API**: O sistema gerencia automaticamente erros 429 trocando de modelo e aguardando (backoff), mas em casos extremos pode solicitar ao usuário que aguarde.
 *   **Tailwind v4**: Não utilize `tailwind.config.js`. Configurações de tema devem ser feitas via CSS variables no `src/index.css` dentro da diretiva `@theme`.
+
+## 9. Informações do Sistema
+
+*   **Nome do Projeto**: gcp-automation-hub
+*   **Versão do Projeto**: 0.0.0
+*   **Node.js**: v22.17.0
+*   **npm**: 10.9.2
+*   **Sistema Operacional**: Windows
+*   **Gerenciador de Dependências**: npm
+*   **Scripts Disponíveis**:
+    *   `dev`: Inicia o servidor de desenvolvimento (Vite)
+    *   `build`: Compila o projeto para produção
+    *   `preview`: Visualiza a build de produção localmente
